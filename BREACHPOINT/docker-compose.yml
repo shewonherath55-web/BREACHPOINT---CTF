@@ -1,0 +1,128 @@
+
+networks:
+  ctf_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.18.0.0/16
+          gateway: 172.18.0.1
+
+volumes:
+  mariadb_data:
+  redis_data:
+
+services:
+  ctfd_platform:
+    image: ctfd/ctfd:3.7.0
+    container_name: ctfd_platform
+    user: ctfd
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - UPLOAD_FOLDER=/var/uploads
+      - DATABASE_URL=mysql+pymysql://ctfd:ctfd_pass_2026@mariadb_db:3306/ctfd
+      - REDIS_URL=redis://redis_cache:6379
+    networks:
+      ctf_net:
+        ipv4_address: 172.18.0.2
+    depends_on:
+      - mariadb_db
+      - redis_cache
+
+  mariadb_db:
+    image: mariadb:10.6
+    container_name: mariadb_db
+    restart: always
+    environment:
+      - MYSQL_ROOT_PASSWORD=root_root_pw_2026
+      - MYSQL_USER=ctfd
+      - MYSQL_PASSWORD=ctfd_pass_2026
+      - MYSQL_DATABASE=ctfd
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    networks:
+      ctf_net:
+        ipv4_address: 172.18.0.3
+
+  redis_cache:
+    image: redis:7.0-alpine
+    container_name: redis_cache
+    restart: always
+    volumes:
+      - redis_data:/data
+    networks:
+      ctf_net:
+        ipv4_address: 172.18.0.4
+
+  nexacore_stage1:
+    image: nginx:1.24-alpine
+    container_name: nexacore_stage1
+    restart: always
+    ports:
+      - "8080:80"
+    volumes:
+      - ./stage1-osint/html:/usr/share/nginx/html:ro
+    networks:
+      ctf_net:
+        ipv4_address: 172.18.0.10
+
+  nexacore_stage2:
+    image: nginx:1.24-alpine
+    container_name: nexacore_stage2
+    restart: always
+    ports:
+      - "8081:80"
+    volumes:
+      - ./stage2-stegano/html:/usr/share/nginx/html:ro
+    networks:
+      ctf_net:
+        ipv4_address: 172.18.0.11
+
+  nexacore_stage3:
+    image: nginx:1.24-alpine
+    container_name: nexacore_stage3
+    restart: always
+    ports:
+      - "8082:80"
+    volumes:
+      - ./stage3-crypto/html:/usr/share/nginx/html:ro
+    networks:
+      ctf_net:
+        ipv4_address: 172.18.0.12
+
+  nexacore_stage4:
+    build: ./stage4-web
+    container_name: nexacore_stage4
+    restart: always
+    ports:
+      - "8083:80"
+    volumes:
+      - ./stage4-web/html:/usr/share/nginx/html
+    networks:
+      ctf_net:
+        ipv4_address: 172.18.0.13
+
+  nexacore_stage5:
+    image: nginx:1.24-alpine
+    container_name: nexacore_stage5
+    restart: always
+    ports:
+      - "8084:80"
+    volumes:
+      - ./stage5-forensics/html:/usr/share/nginx/html:ro
+    networks:
+      ctf_net:
+        ipv4_address: 172.18.0.14
+
+  nexacore_stage6:
+    image: nginx:1.24-alpine
+    container_name: nexacore_stage6
+    restart: always
+    ports:
+      - "8085:80"
+    volumes:
+      - ./stage6-networking/html:/usr/share/nginx/html:ro
+    networks:
+      ctf_net:
+        ipv4_address: 172.18.0.15
